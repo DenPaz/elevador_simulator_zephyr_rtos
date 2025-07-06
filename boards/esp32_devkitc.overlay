@@ -1,0 +1,28 @@
+/ {
+	aliases {
+		my-led = &led0;
+		ssd1306 = &ssd1306;
+	};
+	leds {
+		compatible = "gpio-leds";
+		led0: d18 {
+			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&i2c0 {
+	ssd1306: ssd1306@3c {
+		compatible = "solomon,ssd1306fb";
+		reg = <0x3c>;
+		height = <64>;
+		width = <128>;
+		segment-offset = <0>;
+		page-offset = <0>;
+		display-offset = <0>;
+		multiplex-ratio = <63>;
+		prechargep = <0x22>;
+		com-invdir;
+		segment-remap;
+	};
+};
