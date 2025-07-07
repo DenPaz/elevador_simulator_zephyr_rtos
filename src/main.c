@@ -114,48 +114,45 @@ static void elevator_thread(void *arg1, void *arg2, void *arg3)
 
     while (1)
     {
-        while (1)
+        // Bloqueia até receber uma requisição
+        k_msgq_get(&elevator_queue, &target_floor, K_FOREVER);
+
+        // Remove do pending_requests
+        k_mutex_lock(&queue_mutex, K_FOREVER);
+        for (int i = 0; i < pending_count; i++)
         {
-            // Bloqueia até receber uma requisição
-            k_msgq_get(&elevator_queue, &target_floor, K_FOREVER);
-
-            // Remove do pending_requests
-            k_mutex_lock(&queue_mutex, K_FOREVER);
-            for (int i = 0; i < pending_count; i++)
-            {
-                pending_requests[i] = pending_requests[i + 1];
-            }
-            if (pending_count)
-            {
-                pending_count--;
-            }
-            k_mutex_unlock(&queue_mutex);
-
-            // Atualiza o estado
-            last_requested_floor = target_floor;
-            elevator_state = ELEV_MOVING;
-            LOG_INF("Elevador indo para o andar %d", target_floor);
-
-            // Move o elevador piso a piso
-            while (current_floor != target_floor)
-            {
-                k_sleep(K_MSEC(MOVE_TIME_MS));
-                if (current_floor < target_floor)
-                {
-                    current_floor++;
-                }
-                else
-                {
-                    current_floor--;
-                }
-                LOG_INF("Andar atual: %d", current_floor);
-            }
-
-            // Elevador chegou ao destino
-            LOG_INF("Elevador chegou ao andar %d", current_floor);
-            elevator_state = ELEV_READY;
-            last_requested_floor = 0;
+            pending_requests[i] = pending_requests[i + 1];
         }
+        if (pending_count)
+        {
+            pending_count--;
+        }
+        k_mutex_unlock(&queue_mutex);
+
+        // Atualiza o estado
+        last_requested_floor = target_floor;
+        elevator_state = ELEV_MOVING;
+        LOG_INF("Elevador indo para o andar %d", target_floor);
+
+        // Move o elevador piso a piso
+        while (current_floor != target_floor)
+        {
+            k_sleep(K_MSEC(MOVE_TIME_MS));
+            if (current_floor < target_floor)
+            {
+                current_floor++;
+            }
+            else
+            {
+                current_floor--;
+            }
+            LOG_INF("Andar atual: %d", current_floor);
+        }
+
+        // Elevador chegou ao destino
+        LOG_INF("Elevador chegou ao andar %d", current_floor);
+        elevator_state = ELEV_READY;
+        last_requested_floor = 0;
     }
 }
 
@@ -196,10 +193,10 @@ static void display_thread(void *arg1, void *arg2, void *arg3)
 
         if (k_mutex_lock(&display_mutex, K_MSEC(500)) == 0)
         {
-            cfb_print(display, "                      ", 0, 0);
-            cfb_print(display, "                      ", 0, 16);
-            cfb_print(display, "                      ", 0, 32);
-            cfb_print(display, "                      ", 0, 48);
+            for (int y = 0; y <= 48; y += 16)
+            {
+                cfb_print(display, "                      ", 0, y);
+            }
             cfb_print(display, line1, 0, 0);
             cfb_print(display, line2, 0, 16);
             cfb_print(display, line3, 0, 32);
