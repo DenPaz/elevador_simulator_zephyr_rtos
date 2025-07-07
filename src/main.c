@@ -7,44 +7,74 @@
 
 LOG_MODULE_REGISTER(main);
 
-// Configurações
+/*==============================================================================
+ *                            CONFIGURAÇÕES
+ *============================================================================*/
 #define STACK_SIZE 1024
+#define MOVE_TIME_MS 2000
+#define MAX_PENDING_REQUESTS 5
+
+// Prioridades das threads
 #define BUTTON_PRIORITY 3
 #define ELEVATOR_PRIORITY 4
 #define DISPLAY_PRIORITY 5
-#define MOVE_TIME_MS 3000
-#define MAX_PENDING_REQUESTS 5
 
-// GPIOs
+/*==============================================================================
+ *                            GPIO PERIFÉRICOS
+ *============================================================================*/
+// Definição dos botões
 const struct gpio_dt_spec btn1 = GPIO_DT_SPEC_GET(DT_ALIAS(btn1), gpios);
 const struct gpio_dt_spec btn2 = GPIO_DT_SPEC_GET(DT_ALIAS(btn2), gpios);
 const struct gpio_dt_spec btn3 = GPIO_DT_SPEC_GET(DT_ALIAS(btn3), gpios);
 const struct gpio_dt_spec btn4 = GPIO_DT_SPEC_GET(DT_ALIAS(btn4), gpios);
 
-// Display
+// Definição do display
 const struct device *display = DEVICE_DT_GET(DT_ALIAS(display));
 
-// Mutex para o display e fila de requisições
+/*==============================================================================
+ *                            SINCRONIZAÇÃO & FILAS
+ *============================================================================*/
+// Mutexes
 K_MUTEX_DEFINE(display_mutex);
 K_MUTEX_DEFINE(queue_mutex);
 
-// Fila para enviar requisições de andar
+// Fila de mensagens entre botões e elevador
 K_MSGQ_DEFINE(elevator_queue, sizeof(uint8_t), 10, 4);
 
-// Variáveis globais
-volatile uint8_t current_floor = 1;
-volatile uint8_t last_requested_floor = 0;
-volatile char elevator_state = 'R';
+// Fila de requisições pendentes
 static uint8_t pending_requests[MAX_PENDING_REQUESTS];
 static uint8_t pending_count;
 
-// Thread: Escuta botões e envia requisições
-void button_thread(void *arg1, void *arg2, void *arg3)
+/*==============================================================================
+ *                            ESTADOS GLOBAIS
+ *============================================================================*/
+typedef enum
+{
+    ELEV_READY = 'R',
+    ELEV_MOVING = 'M'
+} elev_state_t;
+static volatile uint8_t current_floor = 1;
+static volatile uint8_t last_requested_floor = 0;
+static volatile elev_state_t elevator_state = ELEV_READY;
+
+/*==============================================================================
+ *                            PROTÓTIPOS LOCAIS
+ *============================================================================*/
+static void button_thread(void *arg1, void *arg2, void *arg3);
+static void elevator_thread(void *arg1, void *arg2, void *arg3);
+static void display_thread(void *arg1, void *arg2, void *arg3);
+
+/*==============================================================================
+ *                            THREADS
+ *============================================================================*/
+// Lê debounced os quatro botões e enfileira chamadas
+static void button_thread(void *arg1, void *arg2, void *arg3)
 {
     const struct gpio_dt_spec *buttons[] = {&btn1, &btn2, &btn3, &btn4};
     bool last_state[4] = {0};
     uint8_t floor;
 
+    // Estado inicial
     for (int i = 0; i < 4; i++)
     {
         last_state[i] = gpio_pin_get_dt(buttons[i]) == 0;
@@ -54,12 +84,16 @@ void button_thread(void *arg1, void *arg2, void *arg3)
     {
         for (int i = 0; i < 4; i++)
         {
-            bool current_state = gpio_pin_get_dt(buttons[i]) == 0;
+            bool current_state = (gpio_pin_get_dt(buttons[i]) == 0);
+
+            // Borda de descida: botão pressionado
             if (current_state && !last_state[i])
             {
                 floor = i + 1;
                 LOG_INF("Botão do andar %d pressionado", floor);
                 k_msgq_put(&elevator_queue, &floor, K_NO_WAIT);
+
+                // Adiciona à fila de requisições pendentes
                 k_mutex_lock(&queue_mutex, K_FOREVER);
                 if (pending_count < MAX_PENDING_REQUESTS)
                 {
@@ -73,8 +107,8 @@ void button_thread(void *arg1, void *arg2, void *arg3)
     }
 }
 
-// Thread: Simula o movimento do elevador
-void elevator_thread(void *arg1, void *arg2, void *arg3)
+// Processa a fila de elevador
+static void elevator_thread(void *arg1, void *arg2, void *arg3)
 {
     uint8_t target_floor;
 
@@ -82,7 +116,10 @@ void elevator_thread(void *arg1, void *arg2, void *arg3)
     {
         while (1)
         {
+            // Bloqueia até receber uma requisição
             k_msgq_get(&elevator_queue, &target_floor, K_FOREVER);
+
+            // Remove do pending_requests
             k_mutex_lock(&queue_mutex, K_FOREVER);
             for (int i = 0; i < pending_count; i++)
             {
@@ -94,10 +131,12 @@ void elevator_thread(void *arg1, void *arg2, void *arg3)
             }
             k_mutex_unlock(&queue_mutex);
 
+            // Atualiza o estado
             last_requested_floor = target_floor;
-            elevator_state = 'M';
+            elevator_state = ELEV_MOVING;
             LOG_INF("Elevador indo para o andar %d", target_floor);
 
+            // Move o elevador piso a piso
             while (current_floor != target_floor)
             {
                 k_sleep(K_MSEC(MOVE_TIME_MS));
@@ -112,35 +151,35 @@ void elevator_thread(void *arg1, void *arg2, void *arg3)
                 LOG_INF("Andar atual: %d", current_floor);
             }
 
+            // Elevador chegou ao destino
             LOG_INF("Elevador chegou ao andar %d", current_floor);
-            elevator_state = 'R';
+            elevator_state = ELEV_READY;
             last_requested_floor = 0;
         }
     }
 }
 
-// Thread: Atualiza o display
-void display_thread(void *arg1, void *arg2, void *arg3)
+// Exibe o estado do elevador no display
+static void display_thread(void *arg1, void *arg2, void *arg3)
 {
     char line1[32], line2[32], line3[32], line4[32];
 
     while (1)
     {
         snprintf(line1, sizeof(line1), "Andar: %d", current_floor);
-
         if (last_requested_floor > 0)
         {
             snprintf(line2, sizeof(line2), "Chamado: %d", last_requested_floor);
         }
         else
         {
-            snprintf(line2, sizeof(line2), "Chamado: SN");
+            snprintf(line2, sizeof(line2), "Chamado: ");
         }
+        snprintf(line3, sizeof(line3), "Estado: %c", (char)elevator_state);
 
-        snprintf(line3, sizeof(line3), "Estado: %c", elevator_state);
-
+        // Exibe a fila de requisições pendentes
         k_mutex_lock(&queue_mutex, K_MSEC(100));
-        if (pending_count > 0)
+        if (pending_count)
         {
             int pos = 0;
             for (int i = 0; i < pending_count; i++)
@@ -177,10 +216,11 @@ struct k_thread button_thread_data;
 struct k_thread elevator_thread_data;
 struct k_thread display_thread_data;
 
-// Função principal
+/*==============================================================================
+ *                              FUNÇÃO MAIN
+ *============================================================================*/
 void main(void)
 {
-    // Variável de retorno
     int ret;
 
     // Inicializa o display
