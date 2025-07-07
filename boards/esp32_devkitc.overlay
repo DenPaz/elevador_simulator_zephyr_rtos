@@ -1,18 +1,30 @@
 / {
 	aliases {
-		my-led = &led0;
-		ssd1306 = &ssd1306;
+		btn1 = &btn1;
+		btn2 = &btn2;
+		btn3 = &btn3;
+		btn4 = &btn4;
+		display = &display;
 	};
-	leds {
-		compatible = "gpio-leds";
-		led0: d18 {
-			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+	buttons {
+		compatible = "gpio-keys";
+		btn1: btn1 {
+			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		};
+		btn2: btn2 {
+			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+		};
+		btn3: btn3 {
+			gpios = <&gpio0 19 GPIO_ACTIVE_LOW>;
+		};
+		btn4: btn4 {
+			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
 
 &i2c0 {
-	ssd1306: ssd1306@3c {
+	display: ssd1306@3c {
 		compatible = "solomon,ssd1306fb";
 		reg = <0x3c>;
 		height = <64>;
