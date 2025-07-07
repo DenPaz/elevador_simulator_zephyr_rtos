@@ -196,7 +196,10 @@ static void display_thread(void *arg1, void *arg2, void *arg3)
 
         if (k_mutex_lock(&display_mutex, K_MSEC(500)) == 0)
         {
-            cfb_framebuffer_clear(display, true);
+            cfb_print(display, "                      ", 0, 0);
+            cfb_print(display, "                      ", 0, 16);
+            cfb_print(display, "                      ", 0, 32);
+            cfb_print(display, "                      ", 0, 48);
             cfb_print(display, line1, 0, 0);
             cfb_print(display, line2, 0, 16);
             cfb_print(display, line3, 0, 32);
