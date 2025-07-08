@@ -2,8 +2,6 @@
 
 Este projeto é uma aplicação embarcada desenvolvida com o **Zephyr RTOS**, simulando o funcionamento de um elevador. Ele integra diversos recursos do sistema operacional, como drivers de hardware, comunicação entre tarefas e sincronização de threads.
 
----
-
 ## ⚙️ Tecnologias e Recursos Utilizados
 
 - **Drivers GPIO**: Leitura de botões físicos.
@@ -17,8 +15,6 @@ Este projeto é uma aplicação embarcada desenvolvida com o **Zephyr RTOS**, si
   - Controle do elevador;
   - Atualização do display.
 
----
-
 ## 📋 Funcionalidades
 
 - Suporte a **4 andares** (botões físicos de 1 a 4).
@@ -31,8 +27,6 @@ Este projeto é uma aplicação embarcada desenvolvida com o **Zephyr RTOS**, si
   - **Estado atual** (`R` = Pronto, `M` = Movendo-se);
   - **Fila de andares pendentes**.
 
----
-
 ## 📂 Estrutura do Projeto
 
 ```plaintext
@@ -43,8 +37,6 @@ src/
 prj.conf                     # Configurações do Zephyr RTOS
 ```
 
----
-
 ## ⚙️ Recursos do Zephyr Utilizados
 
 - `k_mutex` → Para proteger acesso à fila de requisições e display.
@@ -53,8 +45,6 @@ prj.conf                     # Configurações do Zephyr RTOS
   - `button_thread`: Lê botões com debounce e envia requisições.
   - `elevator_thread`: Simula movimento entre andares.
   - `display_thread`: Atualiza o display.
-
----
 
 ## 🚀 Como Compilar
 
@@ -70,19 +60,13 @@ west build -b esp32_devkitc/esp32/procpu -p
 west flash
 ```
 
----
-
 ## 📖 Documentação
 
 Para mais detalhes sobre o Zephyr RTOS, consulte a [documentação oficial](https://docs.zephyrproject.org/latest/).
 
----
-
 ## 📄 Licença
 
 Este projeto é licenciado sob a licença MIT. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
-
----
 
 ## 👨‍💻 Autor
 
