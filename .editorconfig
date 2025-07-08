@@ -6,43 +6,10 @@ end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[*.c,*h]
-indent_style = space
-indent_size = 4
-
-[Kconfig]
-indent_style = space
-indent_size = 4
-
-[*.dts]
-indent_style = space
-indent_size = 4
-
-[*.overlay]
+[*.c,*h,*.overlay]
 indent_style = space
 indent_size = 4
 
 [CMakeLists.txt]
 indent_style = space
 indent_size = 2
-
-[*.cmake]
-indent_style = space
-indent_size = 2
-
-[*.py]
-indent_style = space
-indent_size = 4
-
-[*.yml]
-indent_style = space
-indent_size = 2
-
-[*.yaml]
-indent_style = space
-indent_size = 2
-
-[*.rst]
-indent_style = space
-indent_size = 3
-trim_trailing_whitespace = false
